@@ -21,4 +21,5 @@
         outputArray.push([start, end])
         i++
     }
-    
+    return outputArray
+};   
