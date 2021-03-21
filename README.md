@@ -1,1 +1,3 @@
-# algos
+# Algos
+
+Assorted leetcode problems
