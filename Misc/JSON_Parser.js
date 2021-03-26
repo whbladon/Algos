@@ -1,60 +1,123 @@
-//Dispatcher function
-//Identifies datatype, routes to parsing function
-function jsonParser(string){
-    
+
+//Dispatch function
+function JSONParser(string){
+
     if (string === 'true' || string === 'false') return parseBool(string)
-    else if (string === 'null') return parseNull(string)
-    else if (string[0] === '"') return parseString(string.slice(1, -1))
-    else if (string[0] === '{' || string[0] === '[') return partitionData(string)
+    if (string === 'null') return parseNull()
+    if (string[0] === '"') return parseString(string)
+    if (string[0] === '{' || string[0] === '[') return partitionData(string)
     else return parseNum(string)
 }
 
-//
 function parseString(string){
-    return string
+    return string.slice(1, -1).replaceAll("\\", "")
 }
 
 function parseBool(string){
-    if (string === true) return true
-    else return false
+    return string === 'true'
 }
 
 function parseNum(string){
-    return parseInt(string)
+    return Number(string)
 }
 
-function parseNull(string){
+function parseNull(){
     return null
+}
+
+function partitionData(string){
+    const bracketDict = {'[':']', '{':'}'}
+    const bracketStack = []
+    const chunks = []
+    let currChunk = ''
+
+    //Loop through string (minus initial brackets)
+    for (let i = 1; i < string.length - 1; i++){
+
+        //If a string is found, add to chunk until string resolves
+        if (string[i] === '"'){
+            currChunk += string[i++]
+            while (string[i] !== '"' && string[i-1] !== '\\') {
+                currChunk += string[i++]
+            }
+        }
+
+        //If opening bracket is found, push the bracket onto stack
+        if (string[i] in bracketDict){
+            bracketStack.push(string[i])
+        }
+
+        //If we hit a closing bracket, pop it off the stack
+        else if (string[i] === bracketDict[bracketStack[bracketStack.length-1]]){
+            bracketStack.pop()
+        }
+
+        //If we hit a comma, and we are not inside an array or object
+        //Push the current chunk into chunks, reset chunk, continue loop
+        else if (string[i] === ',' && bracketStack.length === 0) {
+            chunks.push(currChunk)
+            currChunk = ''
+            continue
+        }
+
+        //After all conditionals run, add element to chunk
+        currChunk += string[i]
+        
+        //If this is the last element, push your current chunk into chunks
+        if (i === string.length - 2) {
+            chunks.push(currChunk)
+        }
+    }
+
+    //Route chunks to parseArray or parseObj
+    if (string[0] === '[') return parseArray(chunks)
+    return parseObj(chunks)
+}
+
+function parseArray(chunks){
+    return chunks.map(chunk => JSONParser(chunk))
 }
 
 function parseObj(chunks){
     const outputObj = {}
     for (let chunk of chunks){
-        const bracketDict = { '"': '"', '[':']', '{':'}'}
+        const bracketDict = {'[':']', '{':'}'}
         const bracketStack = []
         let key = ''
         let val = ''
-        let inObjectOrArray = false
         let colon = false
         
         for (let i = 0; i < chunk.length; i++){
 
-            //if element is an opening bracket
-            if (chunk[i] in bracketDict) {
+            //If a string is found, add to key or value until string resolves
+            if (chunk[i] === '"'){
+                
+                //Construct the string until we hit closing quotation
+                let foundString = chunk[i++]
+                while (chunk[i] !== '"' && chunk[i-1] !== '\\') {
+                    foundString += chunk[i++]
+                }
+                
+                //Decide whether to add to the key or the value
+                if (!colon) {
+                    key += foundString
+                } else val += foundString
+            }
+
+            //If element is an opening bracket
+            else if (chunk[i] in bracketDict) {
                 bracketStack.push(chunk[i])
-                inObjectOrArray = true
             }
 
-            //if element is last closing bracket on stack, pop it off stack
-            //if the stack is now empty, we are outside of composite data
-            if (chunk[i] === bracketDict[bracketStack[bracketStack.length-1]]){
+            //If element is last closing bracket on stack, pop it off stack
+            //If the stack is now empty, we are outside of composite data
+            else if (chunk[i] === bracketDict[bracketStack[bracketStack.length-1]]) {
                 bracketStack.pop()
-                if (bracketStack.length === 0) inObjectOrArray = false
             }
 
-            //if element is a colon
+            //If element is a colon
             //Switch on colon, and continue (don't push in chunk)
-            if (chunk[i] === ':' && !inObjectOrArray){
+            else if (chunk[i] === ':' && bracketStack.length === 0){
                 colon = true
                 continue
             }
@@ -67,73 +130,11 @@ function parseObj(chunks){
         }
 
         //Parse all values
-        obj[key.slice[1, -1]] = jsonParser(val)
+        outputObj[key.slice(1, -1)] = JSONParser(val)
     }
-    return obj
-}
-
-function parseArray(chunks){
-    return chunks.map(chunk => jsonParser(chunk))
-}
-
-function partitionData(string){
-    const bracketDict = { '"': '"', '[':']', '{':'}'}
-    const bracketStack = []
-    const quoteStack = []
-    const chunks = []
-    let currChunk = ''
-
-    //Loop through string (minus initial brackets)
-    for (let i = 1; i < string.length - 1; i++){
-
-        //if quote is found (without escape char)
-        if (string[i] === '"' && string[i-1] !== '\\'){
-            //if we are currently in string
-            if (quoteStack.length === 1) {
-                inString = false
-                quoteStack.pop()
-
-            //if we are not currently in string
-            } else {
-                inString = true
-                quoteStack.push(string[i])
-            }
-        }
-
-        //If nested array is found
-        if (string[i] in bracketDict && !inString){
-            bracketStack.push(string[i])
-            inObjectOrArray = true
-        }
-
-        //if we hit a closing bracket AND we aren't inside a string
-        //Pop element off bracketstack, if stack is empty, we are outside obj or array now
-        if (string[i] === bracketDict[bracketStack[bracketStack.length-1]] && !inString ){
-            bracketStack.pop()
-            if (bracketStack.length === 0) inObjectOrArray = false
-        }
-
-        //if we hit a comma, and we are not inside a string or an array
-        //Push the current chunk into chunks, continue loop
-        if (string[i] === ',' && !inString && !inObjectOrArray) {
-            chunks.push(currChunk)
-            currChunk = ''
-            continue
-        }
-
-        //After all conditionals run, add element to chunk
-        currChunk += string[i]
-        
-        //If this is the last element, push your current chunk into chunks
-        if (i === string.length - 1) {
-            chunks.push(currChunk)
-        }
-    }
-
-    //If we started with an array, pass chunks into parseArray
-    //Otherwise we started with an object, so pass chunks into parseObj
-    if (string[0] === '[') return parseArray(chunks)
-    return parseObj(chunks)
+    return outputObj
 }
 
 
+console.log(JSONParser("something"))
+console.log(JSONParser('[1,2,3,[1,3,{"a":"b"}]]'))
