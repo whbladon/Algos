@@ -9,8 +9,8 @@
     let counter = 0
   
     //DFS on element
-            //if element is 0 or if visited, exit
-            //mark visited in obj
+            //if element is 0, exit
+            //mark visited with 0
             //recurse to r,l,u,d
     
     const dfs = (y, x) => {
