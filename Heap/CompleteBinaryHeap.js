@@ -1,23 +1,37 @@
 //Priority Queue implemented with complete binary heap
-//O(logn) insertion O(1) remove
+//O(logn) insertion O(logn) remove, because you must restructure
 
 class PriorityQueue {
   constructor() {
     this.heap = [null];
   }
 
+  
   insert(value, priority) {
+
+    //Instantiate node, push into heap array
     const newNode = new Node(value, priority);
     this.heap.push(newNode);
-    let currentNodeIdx = this.heap.length - 1;
-    let currentNodeParentIdx = Math.floor(currentNodeIdx / 2);
+
+    //Create current pointers to new Node and it's parent
+    let currentNodeIdx = this.heap.length - 1; // 1
+    let currentNodeParentIdx = Math.floor(currentNodeIdx / 2); // 0
+
+    //Loop to locate insertion location
+    //While currentNode's parent exists AND newNode's priority is greater than currentNode's parent priority
     while (
       this.heap[currentNodeParentIdx] &&
       newNode.priority > this.heap[currentNodeParentIdx].priority
     ) {
-      const parent = this.heap[currentNodeParentIdx];
+
+    //Retrieve parent node
+      const parent = this.heap[currentNodeParentIdx]; //null
+    //Replace parent's position with newNode
       this.heap[currentNodeParentIdx] = newNode;
+    //Replace currentNode's position with parent
       this.heap[currentNodeIdx] = parent;
+    
+    //Reset indexes based on mutated heap
       currentNodeIdx = currentNodeParentIdx;
       currentNodeParentIdx = Math.floor(currentNodeIdx / 2);
     }
